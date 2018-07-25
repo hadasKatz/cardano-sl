@@ -9,6 +9,7 @@
 {-# LANGUAGE PolyKinds                  #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE CPP                        #-}
 
 -- The hlint parser fails on the `pattern` function, so we disable the
 -- language extension here.
@@ -1497,6 +1498,16 @@ data NodeSettings = NodeSettings {
    , setProjectVersion :: !Version
    , setGitRevision    :: !Text
    } deriving (Show, Eq, Generic)
+
+#if !(MIN_VERSION_swagger2(2,2,2))
+-- See note [Version Orphan]
+instance ToSchema Version
+
+-- Note [Version Orphan]
+-- I have opened a PR to add an instance of 'Version' to the swagger2
+-- library. When the PR is merged, we can delete the instance here and remove the warning from the file.
+-- PR: https://github.com/GetShopTV/swagger2/pull/152
+#endif
 
 instance ToJSON (V1 Core.ApplicationName) where
     toJSON (V1 svAppName) = toJSON (Core.getApplicationName svAppName)
