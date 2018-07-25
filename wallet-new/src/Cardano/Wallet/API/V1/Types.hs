@@ -1501,7 +1501,10 @@ data NodeSettings = NodeSettings {
 
 #if !(MIN_VERSION_swagger2(2,2,2))
 -- See note [Version Orphan]
-instance ToSchema Version
+instance ToSchema Version where
+    declareNamedSchema _ =
+        pure $ NamedSchema (Just "Version") $ mempty
+            & type_ .~ SwaggerString
 
 -- Note [Version Orphan]
 -- I have opened a PR to add an instance of 'Version' to the swagger2
