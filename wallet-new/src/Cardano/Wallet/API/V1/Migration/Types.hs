@@ -21,7 +21,6 @@ import           Formatting (sformat)
 import           Cardano.Wallet.API.V1.Errors as Errors
 import           Cardano.Wallet.API.V1.Types (V1 (..))
 import qualified Cardano.Wallet.API.V1.Types as V1
-import qualified Cardano.Wallet.Kernel.DB.Util.IxSet as IxSet
 import qualified Pos.Client.Txp.Util as V0
 import           Pos.Core (addressF)
 import qualified Pos.Core.Common as Core
@@ -172,7 +171,7 @@ instance Migrate V0.CAccount V1.Account where
     eitherMigrate V0.CAccount{..} =
         V1.Account <$> eitherMigrate caId
                    -- ^ accId
-                   <*> (bimap identity IxSet.fromList $ mapM eitherMigrate caAddresses)
+                   <*> mapM eitherMigrate caAddresses
                    -- ^ accAddresses
                    <*> eitherMigrate caAmount
                    -- ^ accAmount
