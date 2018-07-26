@@ -59,6 +59,7 @@ import           Pos.Ssc.Toss (SscTag (..), TossModifier, tmCertificates,
                      tmCommitments, tmOpenings, tmShares)
 import           Pos.Ssc.Types (ldModifier)
 import           Pos.Txp (MemPool (..))
+import           Pos.Txp.Configuration (TxpConfiguration)
 import           Pos.Util.Util (HasLens (..))
 
 -- The full logic layer uses existing pieces from the former monolithic
@@ -99,11 +100,12 @@ logicFull
     :: forall ctx m .
        ( LogicWorkMode ctx m )
     => ProtocolMagic
+    -> TxpConfiguration
     -> StakeholderId
     -> SecurityParams
     -> (JLEvent -> m ()) -- ^ JSON log callback. FIXME replace by structured logging solution
     -> Logic m
-logicFull pm ourStakeholderId securityParams jsonLogTx =
+logicFull pm txpConfig ourStakeholderId securityParams jsonLogTx =
     let
         getSerializedBlock :: HeaderHash -> m (Maybe SerializedBlock)
         getSerializedBlock = DB.dbGetSerBlock
@@ -155,7 +157,7 @@ logicFull pm ourStakeholderId securityParams jsonLogTx =
             { toKey = pure . Tagged . hash . taTx . getTxMsgContents
             , handleInv = \(Tagged txId) -> not . HM.member txId . _mpLocalTxs <$> withTxpLocalData getMemPool
             , handleReq = \(Tagged txId) -> fmap TxMsgContents . HM.lookup txId . _mpLocalTxs <$> withTxpLocalData getMemPool
-            , handleData = \(TxMsgContents txAux) -> Txp.handleTxDo pm jsonLogTx txAux
+            , handleData = \(TxMsgContents txAux) -> Txp.handleTxDo pm txpConfig jsonLogTx txAux
             }
 
         postUpdate = KeyVal

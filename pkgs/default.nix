@@ -16500,6 +16500,8 @@ cardano-sl
 cardano-sl-core
 cardano-sl-crypto
 cardano-sl-infra
+cardano-sl-networking
+cardano-sl-txp
 cardano-sl-util
 lens
 log-warper
@@ -16736,6 +16738,7 @@ cardano-sl-txp
 cardano-sl-update
 cardano-sl-util
 cardano-sl-util-test
+containers
 data-default
 formatting
 hspec

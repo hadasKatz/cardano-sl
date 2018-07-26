@@ -20,6 +20,7 @@ import           Pos.DB.Txp (ProcessBlundsSettings (..), TxpBlund,
                      TxpGlobalSettings (..), applyBlocksWith, blundToAuxNUndo,
                      processBlunds, txpGlobalSettings)
 import           Pos.Infra.Slotting (getSlotStart)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import qualified Pos.Util.Modifier as MM
 
 import qualified Pos.Explorer.DB as GS
@@ -28,11 +29,14 @@ import           Pos.Explorer.Txp.Toil (EGlobalToilM, ExplorerExtraLookup (..),
                      ExplorerExtraModifier (..), eApplyToil, eRollbackToil)
 
 -- | Settings used for global transactions data processing used by explorer.
-explorerTxpGlobalSettings :: HasConfiguration => ProtocolMagic -> TxpGlobalSettings
-explorerTxpGlobalSettings pm =
+explorerTxpGlobalSettings :: HasConfiguration
+                          => ProtocolMagic
+                          -> TxpConfiguration
+                          -> TxpGlobalSettings
+explorerTxpGlobalSettings pm txpConfig =
     -- verification is same
-    (txpGlobalSettings pm)
-    { tgsApplyBlocks = applyBlocksWith pm applySettings
+    (txpGlobalSettings pm txpConfig)
+    { tgsApplyBlocks = applyBlocksWith pm txpConfig applySettings
     , tgsRollbackBlocks = processBlunds rollbackSettings . getNewestFirst
     }
 

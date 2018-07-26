@@ -33,7 +33,7 @@ import           Pos.Explorer.Txp.Toil.Monad (EGlobalToilM, ELocalToilM,
                      explorerExtraMToEGlobalToilM, explorerExtraMToELocalToilM,
                      getAddrBalance, getAddrHistory, getTxExtra, getUtxoSum,
                      putAddrBalance, putTxExtra, putUtxoSum, updateAddrHistory)
-import           Pos.Txp.Configuration (HasTxpConfiguration)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import           Pos.Txp.Toil (ToilVerFailure (..), extendGlobalToilM,
                      extendLocalToilM)
 import qualified Pos.Txp.Toil as Txp
@@ -92,15 +92,15 @@ eRollbackToil txun = do
 -- | Verify one transaction and also add it to mem pool and apply to utxo
 -- if transaction is valid.
 eProcessTx
-    :: HasTxpConfiguration
-    => ProtocolMagic
+    :: ProtocolMagic
+    -> TxpConfiguration
     -> BlockVersionData
     -> EpochIndex
     -> (TxId, TxAux)
     -> (TxUndo -> TxExtra)
     -> ExceptT ToilVerFailure ELocalToilM ()
-eProcessTx pm bvd curEpoch tx@(id, aux) createExtra = do
-    undo <- mapExceptT extendLocalToilM $ Txp.processTx pm bvd mempty curEpoch tx
+eProcessTx pm txpConfig bvd curEpoch tx@(id, aux) createExtra = do
+    undo <- mapExceptT extendLocalToilM $ Txp.processTx pm txpConfig bvd curEpoch tx
     lift $ explorerExtraMToELocalToilM $ do
         let extra = createExtra undo
         putTxExtraWithHistory id extra $ getTxRelatedAddrs aux undo
@@ -111,17 +111,17 @@ eProcessTx pm bvd curEpoch tx@(id, aux) createExtra = do
 -- | Get rid of invalid transactions.
 -- All valid transactions will be added to mem pool and applied to utxo.
 eNormalizeToil
-    :: HasTxpConfiguration
-    => ProtocolMagic
+    :: ProtocolMagic
+    -> TxpConfiguration
     -> BlockVersionData
     -> EpochIndex
     -> [(TxId, (TxAux, TxExtra))]
     -> ELocalToilM ()
-eNormalizeToil pm bvd curEpoch txs = mapM_ normalize ordered
+eNormalizeToil pm txpConfig bvd curEpoch txs = mapM_ normalize ordered
   where
     ordered = fromMaybe txs $ topsortTxs wHash txs
     wHash (i, (txAux, _)) = WithHash (taTx txAux) i
-    normalize = runExceptT . uncurry (eProcessTx pm bvd curEpoch) . repair
+    normalize = runExceptT . uncurry (eProcessTx pm txpConfig bvd curEpoch) . repair
     repair (i, (txAux, extra)) = ((i, txAux), const extra)
 
 ----------------------------------------------------------------------------

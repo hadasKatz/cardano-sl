@@ -31,6 +31,7 @@ import           Pos.Crypto (ProtocolMagic, PublicKey, emptyPassphrase,
                      safeCreatePsk, unsafeCheatingHashCoerce, withSafeSigner)
 import           Pos.DB.Class (MonadGState (..))
 import           Pos.Infra.Diffusion.Types (Diffusion (..))
+import           Pos.Txp.Configuration (TxpConfiguration)
 import           Pos.Update (BlockVersionModifier (..))
 import           Pos.Util.UserSecret (WalletUserSecret (..), readUserSecret,
                      usKeys, usPrimKey, usWallet, userSecret)
@@ -63,11 +64,12 @@ import           Repl (PrintAction)
 createCommandProcs ::
        forall m. (MonadIO m, CanLog m, HasLoggerName m)
     => Maybe ProtocolMagic
+    -> Maybe TxpConfiguration
     -> Maybe (Dict (MonadAuxxMode m))
     -> PrintAction m
     -> Maybe (Diffusion m)
     -> [CommandProc m]
-createCommandProcs mpm hasAuxxMode printAction mDiffusion = rights . fix $ \commands -> [
+createCommandProcs mpm mTxpConfig hasAuxxMode printAction mDiffusion = rights . fix $ \commands -> [
 
     return CommandProc
     { cpName = "L"
@@ -402,6 +404,7 @@ createCommandProcs mpm hasAuxxMode printAction mDiffusion = rights . fix $ \comm
     let name = "generate-blocks" in
     needsProtocolMagic name >>= \pm ->
     needsAuxxMode name >>= \Dict ->
+    needsTxpConfig name >>= \txpConfig ->
     return CommandProc
     { cpName = name
     , cpArgumentPrepare = identity
@@ -410,7 +413,7 @@ createCommandProcs mpm hasAuxxMode printAction mDiffusion = rights . fix $ \comm
         bgoSeed <- getArgOpt tyInt "seed"
         return GenBlocksParams{..}
     , cpExec = \params -> do
-        generateBlocks pm params
+        generateBlocks pm txpConfig params
         return ValueUnit
     , cpHelp = "generate <n> blocks"
     },
@@ -518,6 +521,9 @@ createCommandProcs mpm hasAuxxMode printAction mDiffusion = rights . fix $ \comm
     needsProtocolMagic :: Name -> Either UnavailableCommand ProtocolMagic
     needsProtocolMagic name =
         maybe (Left $ UnavailableCommand name "ProtocolMagic is not available") Right mpm
+    needsTxpConfig :: Name -> Either UnavailableCommand TxpConfiguration
+    needsTxpConfig name =
+        maybe (Left $ UnavailableCommand name "TxpConfiguration is not available") Right mTxpConfig
 
 procConst :: Applicative m => Name -> Value -> CommandProc m
 procConst name value =

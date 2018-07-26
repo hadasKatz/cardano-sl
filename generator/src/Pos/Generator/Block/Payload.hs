@@ -39,6 +39,7 @@ import           Pos.Generator.Block.Mode (BlockGenMode, BlockGenRandMode,
 import           Pos.Generator.Block.Param (HasBlockGenParams (..),
                      HasTxGenParams (..))
 import           Pos.Txp (Utxo, execUtxoM, utxoToLookup)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import qualified Pos.Txp.Toil.Utxo as Utxo
 import qualified Pos.Util.Modifier as Modifier
 
@@ -120,8 +121,9 @@ genTxPayload
     :: forall ext g m
      . (RandomGen g, MonadBlockGenBase m, MonadTxpLocal (BlockGenMode ext m))
     => ProtocolMagic
+    -> TxpConfiguration
     -> BlockGenRandMode ext g m ()
-genTxPayload pm = do
+genTxPayload pm txpConfig = do
     invAddrSpendingData <-
         unInvAddrSpendingData <$> view (blockGenParams . asSpendingData)
     -- We only leave outputs we have secret keys related to. Tx
@@ -221,7 +223,7 @@ genTxPayload pm = do
         let txId = hash tx
         let txIns = _txInputs tx
         -- @txpProcessTx@ for BlockGenMode should be non-blocking
-        res <- lift . lift $ txpProcessTx pm (txId, txAux)
+        res <- lift . lift $ txpProcessTx pm txpConfig (txId, txAux)
         case res of
             Left e  -> error $ "genTransaction@txProcessTransaction: got left: " <> pretty e
             Right _ -> do
@@ -246,6 +248,7 @@ genPayload
     :: forall ext g m
      . (RandomGen g, MonadBlockGenBase m, MonadTxpLocal (BlockGenMode ext m))
     => ProtocolMagic
+    -> TxpConfiguration
     -> SlotId
     -> BlockGenRandMode ext g m ()
-genPayload pm _ = genTxPayload pm
+genPayload pm txpConfig _ = genTxPayload pm txpConfig

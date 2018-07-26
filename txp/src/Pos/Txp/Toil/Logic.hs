@@ -30,7 +30,7 @@ import           Pos.Core.Txp (Tx (..), TxAux (..), TxId, TxOut (..), TxUndo,
                      TxpUndo, checkTxAux, toaOut, txOutAddress)
 import           Pos.Core.Update (BlockVersionData (..), isBootstrapEraBVD)
 import           Pos.Crypto (ProtocolMagic, WithHash (..), hash)
-import           Pos.Txp.Configuration (HasTxpConfiguration, memPoolLimitTx)
+import           Pos.Txp.Configuration (TxpConfiguration (..), memPoolLimitTx)
 import           Pos.Txp.Toil.Failure (ToilVerFailure (..))
 import           Pos.Txp.Toil.Monad (GlobalToilM, LocalToilM, UtxoM, hasTx,
                      memPoolSize, putTxWithUndo, utxoMToGlobalToilM,
@@ -87,32 +87,30 @@ rollbackToil txun = do
 
 -- | Verify one transaction and also add it to mem pool and apply to utxo
 -- if transaction is valid.
-processTx ::
-       HasTxpConfiguration
-    => ProtocolMagic
+processTx
+    :: ProtocolMagic
+    -> TxpConfiguration
     -> BlockVersionData
-    -> Set Address
     -> EpochIndex
     -> (TxId, TxAux)
     -> ExceptT ToilVerFailure LocalToilM TxUndo
-processTx pm bvd lockedAssets curEpoch tx@(id, aux) = do
+processTx pm txpConfig bvd curEpoch tx@(id, aux) = do
     whenM (lift $ hasTx id) $ throwError ToilKnown
-    whenM ((>= memPoolLimitTx) <$> lift memPoolSize) $
-        throwError (ToilOverwhelmed memPoolLimitTx)
-    undo <- mapExceptT utxoMToLocalToilM $ verifyAndApplyTx pm bvd lockedAssets curEpoch True tx
+    whenM ((>= memPoolLimitTx txpConfig) <$> lift memPoolSize) $
+        throwError (ToilOverwhelmed $ memPoolLimitTx txpConfig)
+    undo <- mapExceptT utxoMToLocalToilM $ verifyAndApplyTx pm bvd (tcAssetLockedSrcAddrs txpConfig) curEpoch True tx
     undo <$ lift (putTxWithUndo id aux undo)
 
 -- | Get rid of invalid transactions.
 -- All valid transactions will be added to mem pool and applied to utxo.
-normalizeToil ::
-       HasTxpConfiguration
-    => ProtocolMagic
+normalizeToil
+    :: ProtocolMagic
+    -> TxpConfiguration
     -> BlockVersionData
-    -> Set Address
     -> EpochIndex
     -> [(TxId, TxAux)]
     -> LocalToilM ()
-normalizeToil pm bvd lockedAssets curEpoch txs = mapM_ normalize ordered
+normalizeToil pm txpConfig bvd curEpoch txs = mapM_ normalize ordered
   where
     -- If there is a cycle in the tx list, topsortTxs returns Nothing.
     -- Why is that not an error? And if its not an error, why bother
@@ -122,7 +120,7 @@ normalizeToil pm bvd lockedAssets curEpoch txs = mapM_ normalize ordered
     normalize ::
            (TxId, TxAux)
         -> LocalToilM ()
-    normalize = void . runExceptT . processTx pm bvd lockedAssets curEpoch
+    normalize = void . runExceptT . processTx pm txpConfig bvd curEpoch
 
 ----------------------------------------------------------------------------
 -- Verify and Apply logic

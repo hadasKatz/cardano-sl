@@ -52,6 +52,7 @@ import           Pos.Logic.Full (logicFull)
 import           Pos.Logic.Types (Logic, hoistLogic)
 import           Pos.Reporting.Production (ProductionReporterParams (..),
                      productionReporter)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import           Pos.Update.Configuration (HasUpdateConfiguration,
                      lastKnownBlockVersion)
 import           Pos.Util.CompileInfo (HasCompileInfo, compileInfo)
@@ -76,10 +77,11 @@ runRealMode
        -- though they should use only @RealModeContext@
        )
     => ProtocolMagic
+    -> TxpConfiguration
     -> NodeResources ext
     -> (Diffusion (RealMode ext) -> RealMode ext a)
     -> IO a
-runRealMode pm nr@NodeResources {..} act = runServer
+runRealMode pm txpConfig nr@NodeResources {..} act = runServer
     pm
     ncNodeParams
     (EkgNodeMetrics nrEkgStore)
@@ -93,7 +95,7 @@ runRealMode pm nr@NodeResources {..} act = runServer
     ourStakeholderId :: StakeholderId
     ourStakeholderId = addressHash (toPublic npSecretKey)
     logic :: Logic (RealMode ext)
-    logic = logicFull pm ourStakeholderId securityParams jsonLog
+    logic = logicFull pm txpConfig ourStakeholderId securityParams jsonLog
     makeLogicIO :: Diffusion IO -> Logic IO
     makeLogicIO diffusion = hoistLogic (elimRealMode pm nr diffusion) logic
     act' :: Diffusion IO -> IO a

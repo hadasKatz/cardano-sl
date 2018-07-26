@@ -97,12 +97,13 @@ instance MonadBListener WalletMode where
 
 runWalletMode :: forall a. (HasConfigurations, HasCompileInfo)
               => ProtocolMagic
+              -> TxpConfiguration
               -> NodeResources ()
               -> PassiveWalletLayer IO
               -> (Diffusion WalletMode -> WalletMode a)
               -> IO a
-runWalletMode pm nr wallet action =
-    runRealMode pm nr $ \diffusion ->
+runWalletMode pm txpConfig nr wallet action =
+    runRealMode pm txpConfig nr $ \diffusion ->
         walletModeToRealMode wallet (action (hoistDiffusion realModeToWalletMode (walletModeToRealMode wallet) diffusion))
 
 walletModeToRealMode :: forall a. PassiveWalletLayer IO -> WalletMode a -> RealMode () a
@@ -196,7 +197,7 @@ instance HasConfiguration => MonadGState WalletMode where
 instance {-# OVERLAPPING #-} CanJsonLog WalletMode where
   jsonLog = jsonLogDefault
 
-instance (HasConfiguration, HasTxpConfiguration)
+instance HasConfiguration
       => MonadTxpLocal WalletMode where
   txpNormalize = txNormalize
   txpProcessTx = txProcessTransaction

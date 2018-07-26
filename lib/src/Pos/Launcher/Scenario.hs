@@ -29,8 +29,7 @@ import           Pos.Infra.Reporting (reportError)
 import           Pos.Infra.Slotting (waitSystemStart)
 import           Pos.Infra.Util.LogSafe (logInfoS)
 import           Pos.Launcher.Resource (NodeResources (..))
-import           Pos.Txp (bootDustThreshold)
-import           Pos.Txp.Configuration (HasTxpConfiguration)
+import           Pos.Txp (TxpConfiguration, bootDustThreshold)
 import           Pos.Update.Configuration (HasUpdateConfiguration,
                      curSoftwareVersion, lastKnownBlockVersion, ourSystemTag)
 import           Pos.Util.AssertMode (inAssertMode)
@@ -105,16 +104,16 @@ runNode' NodeResources {..} workers' plugins' = \diffusion -> do
 -- Initialization, running of workers, running of plugins.
 runNode
     :: ( HasCompileInfo
-       , HasTxpConfiguration
        , WorkMode ctx m
        )
     => ProtocolMagic
+    -> TxpConfiguration
     -> NodeResources ext
     -> [Diffusion m -> m ()]
     -> Diffusion m -> m ()
-runNode pm nr plugins = runNode' nr workers' plugins
+runNode pm txpConfig nr plugins = runNode' nr workers' plugins
   where
-    workers' = allWorkers pm nr
+    workers' = allWorkers pm txpConfig nr
 
 -- | This function prints a very useful message when node is started.
 nodeStartMsg :: (HasUpdateConfiguration, WithLogger m) => m ()

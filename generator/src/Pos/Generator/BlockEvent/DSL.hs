@@ -47,7 +47,7 @@ import           Pos.Generator.BlockEvent (BlockApplyResult (..),
                      PathSegment, SnapshotId, SnapshotOperation (..), byChance,
                      enrichWithSnapshotChecking, genBlocksInStructure,
                      pathSequence)
-import           Pos.Txp.Configuration (HasTxpConfiguration)
+import           Pos.Txp.Configuration (TxpConfiguration)
 
 data BlockEventGenState = BlockEventGenState
     { _begsEvents      :: !(NewestFirst [] (BlockEvent' Path))
@@ -116,15 +116,16 @@ snapshotEq snapshotId = emitEvent $
     BlkEvSnap (SnapshotEq snapshotId)
 
 runBlockEventGenT
-    :: (HasTxpConfiguration, BlockTxpGenMode g ctx m)
+    :: BlockTxpGenMode g ctx m
     => ProtocolMagic
+    -> TxpConfiguration
     -> AllSecrets
     -> GenesisWStakeholders
     -> BlockEventGenT g m ()
     -> RandT g m BlockScenario
-runBlockEventGenT pm secrets genStakeholders m = do
+runBlockEventGenT pm txpConfig secrets genStakeholders m = do
     (annotations, preBlockScenario) <- runBlockEventGenT' m
-    genBlocksInStructure pm secrets genStakeholders annotations preBlockScenario
+    genBlocksInStructure pm txpConfig secrets genStakeholders annotations preBlockScenario
 
 runBlockEventGenT' ::
     (MonadBlockGen ctx m) =>

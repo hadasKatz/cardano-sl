@@ -24,6 +24,7 @@ import           Pos.DB.Txp.MemState (MempoolExt, MonadTxpLocal, MonadTxpMem,
                      txpProcessTx)
 import qualified Pos.Infra.Communication.Relay as Relay
 import           Pos.Infra.Util.JsonLog.Events (JLEvent (..), JLTxR (..))
+import           Pos.Txp.Configuration (TxpConfiguration)
 
 -- Real tx processing
 -- CHECK: @handleTxDo
@@ -31,12 +32,13 @@ import           Pos.Infra.Util.JsonLog.Events (JLEvent (..), JLTxR (..))
 handleTxDo
     :: TxpMode ctx m
     => ProtocolMagic
+    -> TxpConfiguration
     -> (JLEvent -> m ())  -- ^ How to log transactions
     -> TxAux              -- ^ Incoming transaction to be processed
     -> m Bool
-handleTxDo pm logTx txAux = do
+handleTxDo pm txpConfig logTx txAux = do
     let txId = hash (taTx txAux)
-    res <- txpProcessTx pm (txId, txAux)
+    res <- txpProcessTx pm txpConfig (txId, txAux)
     let json me = logTx $ JLTxReceived $ JLTxR
             { jlrTxId     = sformat build txId
             , jlrError    = me

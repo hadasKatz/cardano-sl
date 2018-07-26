@@ -11,6 +11,7 @@ import qualified Pos.Client.Txp.Util as V0
 import qualified Pos.Core as Core
 import           Pos.Core.Txp (TxAux)
 import           Pos.Crypto (ProtocolMagic)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import qualified Pos.Util.Servant as V0
 import qualified Pos.Wallet.WalletMode as V0
 import qualified Pos.Wallet.Web.ClientTypes.Types as V0
@@ -32,10 +33,11 @@ import           Cardano.Wallet.API.V1.Types
 handlers
     :: HasConfigurations
     => ProtocolMagic
+    -> TxpConfiguration
     -> (TxAux -> MonadV1 Bool)
     -> ServerT Transactions.API MonadV1
-handlers pm submitTx =
-             newTransaction pm submitTx
+handlers pm txpConfig submitTx =
+             newTransaction pm txpConfig submitTx
         :<|> allTransactions
         :<|> estimateFees pm
 
@@ -43,10 +45,11 @@ newTransaction
     :: forall ctx m
      . (V0.MonadWalletTxFull ctx m)
     => ProtocolMagic
+    -> TxpConfiguration
     -> (TxAux -> m Bool)
     -> Payment
     -> m (WalletResponse Transaction)
-newTransaction pm submitTx Payment {..} = do
+newTransaction pm txpConfig submitTx Payment {..} = do
     ws <- V0.askWalletSnapshot
     sourceWallet <- migrate (psWalletId pmtSource)
 
@@ -69,7 +72,7 @@ newTransaction pm submitTx Payment {..} = do
     addrCoinList <- migrate $ NE.toList pmtDestinations
     let (V1 policy) = fromMaybe (V1 defaultInputSelectionPolicy) pmtGroupingPolicy
     let batchPayment = V0.NewBatchPayment cAccountId addrCoinList policy
-    cTx <- V0.newPaymentBatch pm submitTx spendingPw batchPayment
+    cTx <- V0.newPaymentBatch pm txpConfig submitTx spendingPw batchPayment
     single <$> migrate cTx
 
 

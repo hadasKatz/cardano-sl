@@ -144,6 +144,7 @@ test-suite cardano-generator-test
                      , cardano-sl-update
                      , cardano-sl-util
                      , cardano-sl-util-test
+                     , containers
                      , data-default
                      , formatting
                      , hspec

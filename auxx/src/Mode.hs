@@ -62,7 +62,6 @@ import           Pos.Infra.Slotting.Class (MonadSlots (..))
 import           Pos.Infra.Util.JsonLog.Events (HasJsonLogConfig (..))
 import           Pos.Launcher (HasConfigurations)
 import           Pos.Ssc.Types (HasSscContext (..))
-import           Pos.Txp (HasTxpConfiguration)
 import           Pos.Util (HasLens (..), postfixLFields)
 import           Pos.Util.CompileInfo (HasCompileInfo, withCompileInfo)
 import           Pos.Util.LoggerName (HasLoggerName' (..))
@@ -202,9 +201,7 @@ instance HasConfiguration => MonadBalances AuxxMode where
     getOwnUtxos addrs = ifM isTempDbUsed (getOwnUtxosGenesis addrs) (getFilteredUtxo addrs)
     getBalance = getBalanceFromUtxo
 
-instance ( HasConfiguration
-         , HasTxpConfiguration
-         ) =>
+instance HasConfiguration =>
          MonadTxHistory AuxxMode where
     getBlockHistory = getBlockHistoryDefault
     getLocalHistory = getLocalHistoryDefault
@@ -228,14 +225,12 @@ instance MonadKeys AuxxMode where
 
 type instance MempoolExt AuxxMode = EmptyMempoolExt
 
-instance ( HasConfiguration
-         , HasTxpConfiguration
-         ) =>
+instance HasConfiguration =>
          MonadTxpLocal AuxxMode where
-    txpNormalize = withReaderT acRealModeContext . txNormalize
-    txpProcessTx pm = withReaderT acRealModeContext . txProcessTransaction pm
+    txpNormalize pm = withReaderT acRealModeContext . txNormalize pm
+    txpProcessTx pm txpConfig = withReaderT acRealModeContext . txProcessTransaction pm txpConfig
 
-instance (HasConfigurations) =>
+instance HasConfigurations =>
          MonadTxpLocal (BlockGenMode EmptyMempoolExt AuxxMode) where
     txpNormalize = withCompileInfo $ txNormalize
     txpProcessTx = withCompileInfo $ txProcessTransactionNoLock

@@ -63,7 +63,7 @@ deriving instance Eq CTx
 -- TODO remove HasCompileInfo when MonadWalletWebMode will be splitted.
 spec :: Spec
 spec = withCompileInfo $
-       withDefConfigurations $ \_ _ ->
+       withDefConfigurations $ \_ _ _ ->
        describe "Wallet.Web.Methods.Payment" $ modifyMaxSuccess (const 10) $ do
     describe "newPaymentBatch" $ do
         describe "Submitting a payment when restoring" rejectPaymentIfRestoringSpec

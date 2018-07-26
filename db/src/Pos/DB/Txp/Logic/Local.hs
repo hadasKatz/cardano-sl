@@ -23,7 +23,6 @@ import           Control.Monad.Except (mapExceptT, runExceptT, throwError)
 import           Control.Monad.Morph (generalize, hoist)
 import           Data.Default (Default (def))
 import qualified Data.HashMap.Strict as HM
-import           Data.Reflection (given)
 import           Formatting (build, sformat, (%))
 import           System.Wlog (NamedPureLogger, WithLogger, launchNamedPureLog,
                      logDebug, logError, logWarning)
@@ -46,7 +45,7 @@ import           Pos.DB.Txp.MemState (GenericTxpLocalData (..), MempoolExt,
                      MonadTxpMem, TxpLocalWorkMode, getLocalTxsMap,
                      getLocalUndos, getMemPool, getTxpExtra, getUtxoModifier,
                      setTxpLocalData, withTxpLocalData, withTxpLocalDataLog)
-import           Pos.Txp.Configuration (tcAssetLockedSrcAddrs, txpConfiguration)
+import           Pos.Txp.Configuration (TxpConfiguration (..))
 import           Pos.Txp.Toil (ExtendedLocalToilM, LocalToilState (..), MemPool,
                      ToilVerFailure (..), UndoMap, Utxo, UtxoLookup,
                      UtxoModifier, extendLocalToilM, mpLocalTxs, normalizeToil,
@@ -67,9 +66,9 @@ type TxpProcessTransactionMode ctx m =
 -- only.
 txProcessTransaction
     :: ( TxpProcessTransactionMode ctx m)
-    => ProtocolMagic -> (TxId, TxAux) -> m (Either ToilVerFailure ())
-txProcessTransaction pm itw =
-    withStateLock LowPriority ProcessTransaction $ \__tip -> txProcessTransactionNoLock pm itw
+    => ProtocolMagic -> TxpConfiguration -> (TxId, TxAux) -> m (Either ToilVerFailure ())
+txProcessTransaction pm txpConfig itw =
+    withStateLock LowPriority ProcessTransaction $ \__tip -> txProcessTransactionNoLock pm txpConfig itw
 
 -- | Unsafe version of 'txProcessTransaction' which doesn't take a
 -- lock. Can be used in tests.
@@ -79,9 +78,10 @@ txProcessTransactionNoLock
        , MempoolExt m ~ ()
        )
     => ProtocolMagic
+    -> TxpConfiguration
     -> (TxId, TxAux)
     -> m (Either ToilVerFailure ())
-txProcessTransactionNoLock pm =
+txProcessTransactionNoLock pm txpConfig =
     txProcessTransactionAbstract buildContext processTxHoisted
   where
     buildContext :: Utxo -> TxAux -> m ()
@@ -93,7 +93,7 @@ txProcessTransactionNoLock pm =
         -> (TxId, TxAux)
         -> ExceptT ToilVerFailure (ExtendedLocalToilM () ()) TxUndo
     processTxHoisted bvd =
-        mapExceptT extendLocalToilM ... (processTx pm bvd (tcAssetLockedSrcAddrs given))
+        mapExceptT extendLocalToilM ... (processTx pm txpConfig bvd)
 
 txProcessTransactionAbstract ::
        forall extraEnv extraState ctx m a.
@@ -181,22 +181,21 @@ txNormalize
        ( TxpLocalWorkMode ctx m
        , MempoolExt m ~ ()
        )
-    => ProtocolMagic -> m ()
-txNormalize =
-    txNormalizeAbstract buildContext . normalizeToilHoisted
+    => ProtocolMagic -> TxpConfiguration -> m ()
+txNormalize pm txpConfig =
+    txNormalizeAbstract buildContext $ normalizeToilHoisted
   where
     buildContext :: Utxo -> [TxAux] -> m ()
     buildContext _ _ = pure ()
 
-    normalizeToilHoisted ::
-           ProtocolMagic
-        -> BlockVersionData
+    normalizeToilHoisted
+        :: BlockVersionData
         -> EpochIndex
         -> HashMap TxId TxAux
         -> ExtendedLocalToilM () () ()
-    normalizeToilHoisted pm bvd epoch txs =
+    normalizeToilHoisted bvd epoch txs =
         extendLocalToilM $
-            normalizeToil pm bvd (tcAssetLockedSrcAddrs txpConfiguration) epoch $ HM.toList txs
+            normalizeToil pm txpConfig bvd epoch $ HM.toList txs
 
 txNormalizeAbstract ::
        (TxpLocalWorkMode ctx m, MempoolExt m ~ extraState)

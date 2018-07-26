@@ -64,7 +64,7 @@ import           Pos.Delegation.Types (DlgBlock, DlgBlund)
 import           Pos.Ssc.Configuration (HasSscConfiguration)
 import           Pos.Ssc.Mem (MonadSscMem)
 import           Pos.Ssc.Types (SscBlock)
-import           Pos.Txp.Configuration (HasTxpConfiguration)
+import           Pos.Txp.Configuration (TxpConfiguration)
 import           Pos.Update.Poll (PollModifier)
 import           Pos.Util (Some (..), spanSafe)
 import           Pos.Util.Util (HasLens', lensOf)
@@ -125,13 +125,17 @@ type MonadMempoolNormalization ctx m
       )
 
 -- | Normalize mempool.
-normalizeMempool :: MonadMempoolNormalization ctx m => ProtocolMagic -> m ()
-normalizeMempool pm = do
+normalizeMempool
+    :: MonadMempoolNormalization ctx m
+    => ProtocolMagic
+    -> TxpConfiguration
+    -> m ()
+normalizeMempool pm txpConfig = do
     -- We normalize all mempools except the delegation one.
     -- That's because delegation mempool normalization is harder and is done
     -- within block application.
     sscNormalize pm
-    txpNormalize pm
+    txpNormalize pm txpConfig
     usNormalize
 
 -- | Applies a definitely valid prefix of blocks. This function is unsafe,
@@ -141,7 +145,6 @@ normalizeMempool pm = do
 -- Invariant: all blocks have the same epoch.
 applyBlocksUnsafe
     :: ( MonadBlockApply ctx m
-       , HasTxpConfiguration
        )
     => ProtocolMagic
     -> BlockVersion
@@ -177,7 +180,6 @@ applyBlocksUnsafe pm bv bvd scb blunds pModifier = do
 
 applyBlocksDbUnsafeDo
     :: ( MonadBlockApply ctx m
-       , HasTxpConfiguration
        )
     => ProtocolMagic
     -> BlockVersion
