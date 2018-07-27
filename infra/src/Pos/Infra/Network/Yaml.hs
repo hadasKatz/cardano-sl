@@ -27,16 +27,20 @@ module Pos.Infra.Network.Yaml
        ) where
 
 
+import qualified Prelude
 import           Universum
 
 import           Data.Aeson (FromJSON (..), ToJSON (..), (.!=), (.:), (.:?),
                      (.=))
 import qualified Data.Aeson as A
+import qualified Data.Aeson.Encoding.Internal as A
 import qualified Data.Aeson.Types as A
 import qualified Data.ByteString.Char8 as BS.C8
 import qualified Data.HashMap.Lazy as HM
-import           Data.IP (IP)
+import           Data.IP (IP (..))
+import           Data.IP.Internal (IPv4 (..), IPv6 (..))
 import qualified Data.Map.Strict as M
+--import           Data.Text as T
 import qualified Network.Broadcast.OutboundQueue as OQ
 import           Network.Broadcast.OutboundQueue.Types
 import qualified Network.DNS as DNS
@@ -80,10 +84,10 @@ newtype AllStaticallyKnownPeers = AllStaticallyKnownPeers
     } deriving (Show)
 
 newtype NodeRegion = NodeRegion Text
-    deriving (Show, Ord, Eq, IsString)
+    deriving (Show, Generic, Ord, Eq, IsString)
 
 newtype NodeRoutes = NodeRoutes [[NodeName]]
-    deriving (Show)
+    deriving (Generic, Show)
 
 data NodeMetadata = NodeMetadata
     { -- | Node type
@@ -187,17 +191,31 @@ instance ToJSON KademliaAddress where
         ]
 
 ----------------------------------------------------------------------------
--- FromJSON instances
+-- JSON instances
 ----------------------------------------------------------------------------
+
+instance ToJSON NodeRegion where
+    toEncoding (NodeRegion text) = A.text text
 
 instance FromJSON NodeRegion where
     parseJSON = fmap NodeRegion . parseJSON
 
+instance ToJSON NodeName where
+    toEncoding (NodeName name) = A.text name
+
 instance FromJSON NodeName where
     parseJSON = fmap NodeName . parseJSON
 
+instance ToJSON NodeRoutes where
+    toEncoding (NodeRoutes nameList) = A.list toEncoding nameList
+
 instance FromJSON NodeRoutes where
     parseJSON = fmap NodeRoutes . parseJSON
+
+instance ToJSON NodeType where
+    toEncoding (NodeCore)  = A.text "core"
+    toEncoding (NodeEdge)  = A.text "edge"
+    toEncoding (NodeRelay) = A.text "relay"
 
 instance FromJSON NodeType where
     parseJSON = A.withText "NodeType" $ \typ -> do
@@ -216,9 +234,49 @@ instance FromJSON OQ.Precedence where
           "high"     -> Right OQ.PHigh
           "highest"  -> Right OQ.PHighest
           _otherwise -> Left $ "Invalid Precedence" <> show typ
-
+{-
+instance ToJSON (DnsDomains DNS.Domain) where
+    toEncoding (DnsDomains domain) = do -- A.text $ (fmap . fmap . fmap) (decodeUtf8 @Text @ByteString) domain
+        allOf <- domain
+        alts <- allOf
+        nodeA <- alts
+        dns <- nodeA
+        return . A.text $ decodeUtf8 @Text @ByteString dns
+-}
 instance FromJSON (DnsDomains DNS.Domain) where
     parseJSON = fmap DnsDomains . parseJSON
+
+instance ToJSON (NodeAddr DNS.Domain) where
+    toJSON =
+        A.object . \case
+            (NodeAddrExact ip mWord) ->
+                 case (ip, mWord) of
+                     (IPv4 (IP4 ip4), Just port) ->
+                         [ "addr" .= (A.String . show $ IPv4 (IP4 ip4))
+                         , "port" .= (toJSON port)
+                         ]
+                     (IPv4 (IP4 ip4), Nothing)   ->
+                         [ "addr" .= (A.String . show $ IPv4 (IP4 ip4))
+                         , "port" .= (toJSON (Prelude.read "3000" :: Word16))
+                         ]
+                     (IPv6 (IP6 ip6), Just port) ->
+                         [ "addr" .= (A.String . show $ IPv6 (IP6 ip6))
+                         , "port" .= (toJSON port)
+                         ]
+                     (IPv6 (IP6 ip6), Nothing)   ->
+                         [ "addr" .= (A.String . show $ IPv6 (IP6 ip6))
+                         , "port" .= (toJSON (Prelude.read "3000" :: Word16))
+                         ]
+            (NodeAddrDNS nHost mWord) ->
+                 case (nHost, mWord) of
+                     (host, Just port)    ->
+                         [ "host" .= (toJSON $ decodeUtf8 @Text host)
+                         , "port" .= (toJSON port)
+                         ]
+                     (host, Nothing)      ->
+                         [ "host" .= (toJSON $ decodeUtf8 @Text host)
+                         , "port" .= (toJSON (Prelude.read "3000" :: Word16))
+                         ]
 
 instance FromJSON (NodeAddr DNS.Domain) where
     parseJSON = A.withObject "NodeAddr" $ extractNodeAddr (toAesonError . aux)
@@ -287,6 +345,10 @@ instance FromJSON NodeMetadata where
        defaultInPublicDNS NodeCore  = False
        defaultInPublicDNS NodeRelay = True
        defaultInPublicDNS NodeEdge  = False
+
+--instance ToJSON AllStaticallyKnownPeers where
+--    toEncoding (AllStaticallyKnownPeers map) =
+--        A.pairs ("AllStaticallyKnownPeers" .= map)
 
 instance FromJSON AllStaticallyKnownPeers where
     parseJSON = A.withObject "AllStaticallyKnownPeers" $ \obj ->

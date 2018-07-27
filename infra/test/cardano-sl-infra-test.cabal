@@ -23,6 +23,7 @@ library
                        Test.Pos.Infra.Diffusion.Subscription.StatusSpec
                        Test.Pos.Infra.Diffusion.Subscription.SubscriptionSpec
                        Test.Pos.Infra.Gen
+                       Test.Pos.Infra.Json
 
   build-depends:       QuickCheck
                      , async

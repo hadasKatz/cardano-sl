@@ -61,7 +61,7 @@ data NodeType =
     -- * never create currency transactions
     -- * can communicate with core nodes
   | NodeRelay
-  deriving (Show, Eq, Ord, Bounded, Enum)
+  deriving (Show, Eq, Generic, Ord, Bounded, Enum)
 
 {-------------------------------------------------------------------------------
   Known peers
@@ -164,7 +164,7 @@ peersFromList notRouted = go start
     go acc ((typ, alts):altss) = -- go (acc & routesOfType typ %~ (alts :)) altss
       let routes = peersRoutes acc
           routes' = routes & routesOfType typ %~ (alts :)
-          newClassifications = Map.fromList (fmap (flip (,) typ) alts)
+          newClassifications = Map.fromList (fmap ((, typ)) alts)
           classification = peersClassification acc
           classification' = Map.union newClassifications classification
           acc' = acc

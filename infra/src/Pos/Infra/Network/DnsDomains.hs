@@ -38,7 +38,7 @@ data NodeAddr a =
     -- If domain unspecified, use the node's name
     -- If port unspecified, use the default.
   | NodeAddrDNS a (Maybe Word16)
-  deriving (Show)
+  deriving (Generic, Show)
 
 -- | Resolve a list of 'NodeAddr', possibly using DNS.
 --
